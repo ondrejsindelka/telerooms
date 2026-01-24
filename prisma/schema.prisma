@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Team {
+  id         String    @id @default(cuid())
+  name       String    @unique
+  color      String    // RGB hex format (#FF6432)
+  createdAt  DateTime  @default(now())
+  isArchived Boolean   @default(false)
+
+  rooms      Room[]
+  history    History[]
+}
+
+model Room {
+  id            String      @id @default(cuid())
+  name          String
+  description   String
+  status        RoomStatus  @default(FREE)
+  currentTeamId String?
+  currentTeam   Team?       @relation(fields: [currentTeamId], references: [id])
+  occupiedSince DateTime?
+  reservedUntil DateTime?
+  updatedAt     DateTime    @updatedAt
+
+  history       History[]
+}
+
+enum RoomStatus {
+  FREE
+  OCCUPIED
+  RESERVED
+  OFFLINE
+}
+
+model History {
+  id             String      @id @default(cuid())
+  roomId         String
+  room           Room        @relation(fields: [roomId], references: [id])
+  teamId         String
+  team           Team        @relation(fields: [teamId], references: [id])
+  action         ActionType
+  timestamp      DateTime    @default(now())
+  previousStatus RoomStatus?
+  newStatus      RoomStatus
+  archivedDate   DateTime?   // null = active, non-null = archived
+}
+
+enum ActionType {
+  OCCUPY
+  RESERVE
+  FREE
+  CANCEL_RESERVATION
+  ADMIN_OVERRIDE
+}
+
+model DailyStats {
+  id                    String   @id @default(cuid())
+  date                  DateTime @unique
+  totalOccupations      Int
+  totalReservations     Int
+  mostPopularRoomId     String?
+  averageOccupationMins Int?
+  teamActivity          Json     // {teamId: count}
+}
+
+model Backup {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  data        Json     // {teams: [], rooms: [], history: []}
+}
